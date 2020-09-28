@@ -41,110 +41,23 @@ CARD_TEXT_STYLE = {
     'color': '#0074D9'    #Pure (or mostly pure) blue.
 }
 
-controls = dbc.FormGroup(
-    [
-        html.P('Dropdown', style={         #The <p> tag defines a paragraph.
-            'textAlign': 'center'
-        }),
-        dcc.Dropdown(
-            id='dropdown',
-            options=[{
-                'label': 'Value One',
-                'value': 'value1'
-            }, {
-                'label': 'Value Two',
-                'value': 'value2'
-            },
-                {
-                    'label': 'Value Three',
-                    'value': 'value3'
-            },
-                {
-                    'label': 'Value Four',
-                    'value': 'value4'
-            },
-
-                {
-                    'label': 'Value Five',
-                    'value': 'value5'
-            }
-
-            ],
-            value=['value1'],  # default value
-            multi=True
-        ),
-        html.Br(),  #The HTML <br> element produces a line break in text (carriage-return). It is useful for writing a poem or an address, where the division of lines is significant.
-        html.P('Range Slider', style={        #The <p> tag defines a paragraph.
-            'textAlign': 'center'
-        }),
-        dcc.RangeSlider(
-            id='range_slider',
-            min=0, # this was 0
-            max=20, #this was 20
-            step=0.5,
-            value=[5, 15]
-        ),
-        html.P('Check Box', style={
-            'textAlign': 'center'
-        }),
-        dbc.Card([dbc.Checklist(
-            id='check_list',
-            options=[{
-                'label': 'Value One',
-                'value': 'value1'
-            },
-                {
-                    'label': 'Value Two',
-                    'value': 'value2'
-                },
-                {
-                    'label': 'Value Three',
-                    'value': 'value3'
-                }
-            ],
-            value=['value1', 'value2'],
-            inline=True
-        )]),
-        html.Br(),
-        html.P('Radio Items', style={
-            'textAlign': 'center'
-        }),
-        dbc.Card([dbc.RadioItems(
-            id='radio_items',
-            options=[{
-                'label': 'Value One',
-                'value': 'value1'
-            },
-                {
-                    'label': 'Value Two',
-                    'value': 'value2'
-                },
-                {
-                    'label': 'Value Three',
-                    'value': 'value3'
-                }
-            ],
-            value='value1',
-            style={
-                'margin': 'auto'
-            }
-        )]),
-        html.Br(),
-        dbc.Button(
-            id='submit_button',
-            n_clicks=0,
-            children='Submit',
-            color='primary',
-            block=True
-        ),
-    ]
-)
 
 sidebar = html.Div(
     [
-        html.H2('Parameters', style=TEXT_STYLE),
-        html.Hr(),  # Hr makes a line to separate different sections, this was originally uncommented out
-        controls
+        html.H2("Menu", className="display-4"),
+        html.Hr(),
+        html.P(
+            "Choose one of the following features", className="lead"
+        ),
+        dbc.Nav(
+            [
+                dbc.NavLink("Search Engine", href="/page-1", id="page-1-link"),
+                dbc.NavLink("Highlight text", href="/page-2", id="page-2-link"),
+                dbc.NavLink("Incentives by country", href="/page-3", id="page-3-link"),
+            ],
+            vertical=True,
+            pills=True,
+        ),
     ],
     style=SIDEBAR_STYLE,
 )
@@ -220,8 +133,10 @@ collapse = html.Div(
     ]
 )
 
+#Content element
+content = html.Div(id="page-content", style=CONTENT_STYLE)
 
-content = html.Div(
+page_1_content = html.Div(
     [
         html.H2('Economic incentive search for forest land restoration', style=TEXT_STYLE),
         html.Hr(),  #break
@@ -240,10 +155,45 @@ content = html.Div(
     style=CONTENT_STYLE
 )
 
+
+
+
 app = dash.Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
-app.layout = html.Div([sidebar, content])                   #this is the key of the division!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+app.layout = html.Div([dcc.Location(id="url"),sidebar, content])                   #this is the key of the division!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
+# this callback uses the current pathname to set the active state of the
+# corresponding nav link to true, allowing users to tell see page they are on
+@app.callback(
+    [Output(f"page-{i}-link", "active") for i in range(1, 4)],
+    [Input("url", "pathname")],
+)
+def toggle_active_links(pathname):
+    if pathname == "/":
+        # Treat page 1 as the homepage / index
+        return True, False, False
+    return [pathname == f"/page-{i}" for i in range(1, 4)]
+
+
+## URL callback
+@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
+def render_page_content(pathname):
+    if pathname in ["/", "/page-1"]:
+        return page_1_content
+    elif pathname == "/page-2":
+        
+        return html.Div("En construcción")
+    elif pathname == "/page-3":
+        return html.Div("En construcción")
+    # If the user tries to reach a different page, return a 404 message
+    else:
+        return dbc.Jumbotron(
+        [
+            html.H1("404: Not found", className="text-danger"),
+            html.Hr(),
+            html.P(f"The pathname {pathname} was not recognised..."),
+        ]
+    )
 
 if __name__ == '__main__':
     app.run_server()
