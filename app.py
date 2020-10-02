@@ -1,13 +1,18 @@
-import pandas
+import pandas as pd
+import numpy as np
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 import dash_table
 import dash_bootstrap_components as dbc
+from urllib.request import urlopen
 from dash.dependencies import Input, Output, State
 import plotly.express as px
+import json
 
+import mexico_content
 # this was added by David
 
 df= px.data.gapminder().query('year==2007')   # this is plotted, it was 2007
@@ -184,7 +189,7 @@ def render_page_content(pathname):
         
         return html.Div("En construcción")
     elif pathname == "/page-3":
-        return html.Div("En construcción")
+        return mexico_content.content
     # If the user tries to reach a different page, return a 404 message
     else:
         return dbc.Jumbotron(
@@ -197,3 +202,65 @@ def render_page_content(pathname):
 
 if __name__ == '__main__':
     app.run_server()
+
+
+
+@app.callback(
+    Output('graph_4', 'figure'),
+    [Input('submit_button', 'n_clicks')],
+    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
+     State('radio_items', 'value')
+     ])
+def update_graph_4(n_clicks, dropdown_value, range_slider_value, check_list_value,
+                   radio_items_value):  # this figure is being called
+    print(n_clicks)
+    print(dropdown_value)
+    print(range_slider_value)
+    print(check_list_value)
+    print(radio_items_value)  # Sample data and figure
+
+
+    with urlopen(
+            'https://raw.githubusercontent.com/davidlararamos/mexico_geojson/master/mx_states.json') as response:
+        mexican_states = json.load(response)
+
+
+
+    state_id_map = {}
+
+    for feature in mexican_states['features']:  # we are creating new keys for our dictionary
+        feature['id'] = feature['properties']['id']
+        # feature['state_name'] = feature['properties']['state_name']
+        state_id_map[feature['properties']['state_name']] = feature['id']
+
+    url = 'https://es.wikipedia.org/wiki/Anexo:Entidades_federativas_de_M%C3%A9xico_por_PIB'
+    df = pd.read_html(url)
+    df_gdp_state = df[1]
+    df_gdp_state_inter = df_gdp_state[['Estado', '2015p']]
+    df_gdp_state_inter['Estado'] = df_gdp_state_inter['Estado'].replace(
+        ['Ciudad de México', 'Estado de México', '50x36px Veracruz'], ['Distrito Federal', 'México', 'Veracruz'])
+    df_gdp_state_corrected = df_gdp_state_inter.rename(columns={"Estado": "State", "2015p": "GDP"})
+    df_gdp_state_corrected_final = df_gdp_state_corrected.drop(df_gdp_state_corrected.index[0])
+    df_gdp_state_corrected_final['id'] = df_gdp_state_corrected_final['State'].apply(lambda x: state_id_map[x])
+
+    df_gdp_state_corrected_final['GDP_nospace'] = ['2312562', '1230628', '1041797', '889703', '676899', '591414',
+                                                   '570172', '464771', '401342', '435028', '400916', '409317', '433857',
+                                                   '423215', '318401', '314979', '290580', '271982', '227598', '224237',
+                                                   '223435', '213783', '203685', '196744', '169885', '161902', '159797',
+                                                   '131983', '103406', '92149', '81672', '75578']
+
+    df_gdp_state_corrected_final['GDP_int'] = df_gdp_state_corrected_final['GDP_nospace'].astype(int)
+    df_gdp_state_corrected_final['GDP_int_scale'] = np.log10(df_gdp_state_corrected_final['GDP_int'])
+
+
+    fig = px.choropleth(df_gdp_state_corrected_final, locations='id', geojson=mexican_states, scope='north america',color='GDP_int',
+                        hover_name='State')
+
+
+    fig.update_geos(fitbounds='locations', visible=False)
+
+
+    fig.update_layout({
+        'height': 600
+    })
+    return fig
